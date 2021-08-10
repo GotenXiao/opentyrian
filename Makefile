@@ -20,6 +20,9 @@ CC ?= gcc
 INSTALL ?= install
 PKG_CONFIG ?= pkg-config
 
+# Used on WIN32/WIN64 to compile .rc to .res.o
+WINDRES ?= windres
+
 VCS_IDREV ?= (git describe --tags || git rev-parse --short HEAD)
 
 INSTALL_PROGRAM ?= $(INSTALL)
@@ -49,6 +52,11 @@ OBJS := $(SRCS:src/%.c=obj/%.o)
 DEPS := $(SRCS:src/%.c=obj/%.d)
 
 ###
+
+ifeq ($(PLATFORM), WIN32)
+    RESOURCES_SRC := $(wildcard visualc/*.rc)
+    RESOURCES_OBJ := $(RESOURCES_SRC:visualc/%.rc=obj/%.res.o)
+endif
 
 ifeq ($(WITH_NETWORK), true)
     EXTRA_CPPFLAGS += -DWITH_NETWORK
@@ -129,7 +137,7 @@ clean :
 	rm -f $(DEPS)
 	rm -f $(TARGET)
 
-$(TARGET) : $(OBJS)
+$(TARGET) : $(OBJS) $(RESOURCES_OBJ)
 	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
 
 -include $(DEPS)
@@ -137,3 +145,7 @@ $(TARGET) : $(OBJS)
 obj/%.o : src/%.c
 	@mkdir -p "$(dir $@)"
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+
+$(RESOURCES_OBJ) : $(RESOURCES_SRC)
+	@mkdir -p "$(dir %@)"
+	$(WINDRES) --output-format=coff --input-format=rc $< $@
